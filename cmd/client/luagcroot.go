@@ -7,7 +7,7 @@ import (
 )
 
 /*
-#include "techmino_client.h"
+#include "client.h"
 
 // luatc_gctname identifies the gc object in techmino.
 static const char* luatc_gctname = "techmino.client.gc";

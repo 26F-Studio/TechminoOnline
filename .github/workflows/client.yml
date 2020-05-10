@@ -7,7 +7,7 @@ on:
     branches: [ master ]
 
 jobs:
-  # Build techmino.client.so under linux operating systems.
+  # Build client.so under linux operating systems.
   build-linux:
     name: Build Linux
     runs-on: ubuntu-latest
@@ -30,13 +30,50 @@ jobs:
     - name: Checkout source code
       uses: actions/checkout@v2
 
-    # Execute build and generate the techmino.client.so lua file.
+    # Execute build and generate client.so lua file.
     - name: Build
-      run: GO111MODULE=on GOPROXY=https://goproxy.io go build -buildmode="c-shared" -ldflags "-w -s" -o techmino.client.so -v ./cmd/client
+      run: GO111MODULE=on GOPROXY=https://goproxy.io go build -buildmode="c-shared" -ldflags "-w -s" -o client.so -v ./cmd/client
 
     # Upload the built artifact as the build result.
     - name: Artifact
       uses: actions/upload-artifact@v2
       with:
-          name: techmino.client-linux.so
-          path: techmino.client.so
+          name: client-linux.so
+          path: client.so
+
+  # Build client.dll under windows operating system.
+  build-windows:
+    name: Build Windows
+    runs-on: windows-latest
+    steps:
+
+    # Execute checkout to fetch the source code of the project.
+    - name: Checkout source code
+      uses: actions/checkout@v2
+
+    # Checkout LuaJIT repository for dependencies.
+    - name: Checkout LuaJIT
+      uses: actions/checkout@v2
+      with:
+        path: luajit
+        repository: LuaJIT/LuaJIT
+        ref: v2.1
+
+    # Prepare MinGW environment for connector building.
+    - name: Checkout MinGW
+      uses: eine/setup-msys2@v0
+      with:
+        msystem: MSYS
+        update: true
+
+    # Execute build and generate the techmino.client.dll lua file.
+    - name: Build
+      shell: msys2 {0}
+      run: ./cmd/client/mingw64.sh
+
+    # Upload the built artifact as the build result.
+    - name: Artifact
+      uses: actions/upload-artifact@v2
+      with:
+          name: client-windows.dll
+          path: client.dll
