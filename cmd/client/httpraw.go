@@ -1,0 +1,116 @@
+package main
+
+import (
+	"bytes"
+	"context"
+	"io"
+	"net/http"
+	"net/url"
+)
+
+/*
+#include "client.h"
+*/
+import "C"
+
+// rawClient is the tcp client which is shared among raw requests.
+var rawClient http.Client
+
+// httpRawResponse is the task result which should be written back
+// to the caller side for reading.
+//
+// TODO: the header fields should also be copied here, but for
+// rapid demo we've ignored them.
+type httpRawResponse struct {
+	// statusCode of the response.
+	statusCode int
+
+	// status string of the response.
+	status string
+
+	// body of the response that is received.
+	body []byte
+}
+
+// marshal the http response back to the lua side.
+func (r httpRawResponse) marshal(L *C.lua_State) {
+	luaTableNew(L, 0, 3)
+
+	// Set the result.code field.
+	luaStringPush(L, "code")
+	luaIntegerPush(L, r.statusCode)
+	luaTableRawSet(L, -3)
+
+	// Set the result.status field.
+	luaStringPush(L, "status")
+	luaStringPush(L, r.status)
+	luaTableRawSet(L, -3)
+
+	// Set the result.body field.
+	luaStringPush(L, "body")
+	luaBytesPush(L, r.body)
+	luaTableRawSet(L, -3)
+}
+
+//export luatc_httpraw
+func luatc_httpraw(L *C.lua_State) C.int {
+	// Make sure that the fields are valid for returning first.
+	if luaTypeOf(L, 1) != luaTypeTable {
+		luaNilPush(L)
+		luaStringPush(L, "missing table argument")
+		return C.int(2)
+	}
+
+	// Attempt to fetch the url field from the table.
+	luaStringPush(L, "url")
+	luaTableRawGet(L, 1)
+	if luaTypeOf(L, -1) != luaTypeString {
+		luaNilPush(L)
+		luaStringPush(L, "missing url argument")
+		return C.int(2)
+	}
+	argumentURL := luaStringGet(L, -1)
+	luaStackPop(L, 1)
+
+	// Attempt to parse the URL given at index.
+	parsedURL, urlErr := url.Parse(argumentURL)
+	if urlErr != nil {
+		luaNilPush(L)
+		luaStringPush(L, urlErr.Error())
+		return C.int(2)
+	}
+
+	// TODO: parse more arguments from the request, now we omit
+	// them since we want a quick demo.
+
+	// Create the request handle and return.
+	luaTaskPush(L, func(ctx context.Context) (luaTaskResult, error) {
+		var err error
+
+		// Initialize the request with parsed arguments.
+		var request http.Request
+		request.URL = parsedURL
+
+		// Perform the task request with the raw client.
+		response, err := rawClient.Do(request.WithContext(ctx))
+		if err != nil {
+			return nil, err
+		}
+
+		// Receive the response body and status from caller.
+		var receiver bytes.Buffer
+		_, err = io.Copy(&receiver, response.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		// Return the collected result to the caller.
+		return httpRawResponse{
+			status:     response.Status,
+			statusCode: response.StatusCode,
+			body:       receiver.Bytes(),
+		}, nil
+	})
+	luaNilPush(L)
+	return C.int(2)
+}

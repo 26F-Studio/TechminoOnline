@@ -29,6 +29,36 @@
  */
 LUALIB_API int luatc_poll(lua_State *L);
 
+/**
+ * reqtask, err = client.httpraw({
+ *     "url": url,       -- http or https url
+ *     "method": method, -- GET, POST, PUSH, etc. (default GET)
+ *     "header": {
+ *     },                -- Table map from key to value (nullable)
+ *     "body": body      -- Long string of request content (nullable)
+ * })
+ *
+ * luatc_httpraw creates a lua task where lua side could poll
+ * for the completion of this task using the poll interface.
+ * The error could still be generated when the request is malformed,
+ * such as missing or invalid url, unsupported method, etc.
+ *
+ * The result received from the request task should be:
+ *
+ * {
+ *     "code": code,     -- status code, like 200, 404
+ *     "status": status, -- status string, like '200 OK', '404 Not Found'.
+ *     "header": {
+ *     },                -- Table map from key to value
+ *     "body": body      -- Long string of received content
+ * }, err = client.poll(reqtask)
+ *
+ * XXX: this function is not intended for developing networking
+ * in techmino, it is just used for demonstrating how the task
+ * mechanism works, and intended for temporary http access.
+ */
+LUALIB_API int luatc_httpraw(lua_State* L);
+
 // luaopen_client is the library entry point function that will
 // be called in 'require "client"' statement.
 LUALIB_API int luaopen_client(lua_State* L);

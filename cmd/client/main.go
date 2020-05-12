@@ -7,6 +7,7 @@ package main
 LUALIB_API int luaopen_client(lua_State* L) {
 	luaL_Reg regs[] = {
 		{ "poll", luatc_poll },
+		{ "httpraw", luatc_httpraw },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, regs);
