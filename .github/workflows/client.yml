@@ -1,10 +1,5 @@
 name: Client
-
-on:
-  push:
-    branches: [ master ]
-  pull_request:
-    branches: [ master ]
+on: [push, pull_request]
 
 jobs:
   # Build client.so under linux operating systems.
