@@ -20,4 +20,5 @@ cd -
 echo "Build the TechminoOnline client connector"
 PKG_CONFIG_PATH="/usr/local/lib/pkgconfig" \
 GO111MODULE=on GOPROXY=https://goproxy.io go build \
-	-buildmode="c-shared" -o client.dll -v ./cmd/client
+	-ldflags '-w -s' -buildmode="c-shared" \
+	-o client.dll -v ./cmd/client

@@ -31,11 +31,11 @@ LUALIB_API int luatc_poll(lua_State *L);
 
 /**
  * reqtask, err = client.httpraw({
- *     "url": url,       -- http or https url
- *     "method": method, -- GET, POST, PUSH, etc. (default GET)
- *     "header": {
+ *     "url" = url,       -- http or https url
+ *     "method" = method, -- GET, POST, PUSH, etc. (default GET)
+ *     "header" = {
  *     },                -- Table map from key to value (nullable)
- *     "body": body      -- Long string of request content (nullable)
+ *     "body" = body      -- Long string of request content (nullable)
  * })
  *
  * luatc_httpraw creates a lua task where lua side could poll
@@ -46,11 +46,11 @@ LUALIB_API int luatc_poll(lua_State *L);
  * The result received from the request task should be:
  *
  * {
- *     "code": code,     -- status code, like 200, 404
- *     "status": status, -- status string, like '200 OK', '404 Not Found'.
- *     "header": {
- *     },                -- Table map from key to value
- *     "body": body      -- Long string of received content
+ *     "code" = code,     -- status code, like 200, 404
+ *     "status" = status, -- status string, like '200 OK', '404 Not Found'.
+ *     "header" = {
+ *     },                 -- Table map from key to value
+ *     "body" = body      -- Long string of received content
  * }, err = client.poll(reqtask)
  *
  * XXX: this function is not intended for developing networking
