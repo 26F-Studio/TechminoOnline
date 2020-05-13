@@ -15,19 +15,32 @@ jobs:
         go-version: ^1.13
       id: go
 
-    # Install the dependencies of pkg-config and luajit.
+    # Install the dependencies of pkg-config.
     - name: Install dependencies
       run: |
-        sudo apt update &&
-        sudo apt install pkg-config libluajit-5.1-dev
+        sudo apt update && sudo apt install pkg-config
 
     # Execute checkout to fetch the source code of the project.
     - name: Checkout source code
       uses: actions/checkout@v2
 
+    # Checkout LuaJIT repository for dependencies.
+    - name: Checkout LuaJIT
+      uses: actions/checkout@v2
+      with:
+        path: luajit
+        repository: LuaJIT/LuaJIT
+        ref: v2.1
+
     # Execute build and generate client.so lua file.
     - name: Build
-      run: GO111MODULE=on GOPROXY=https://goproxy.io go build -buildmode="c-shared" -ldflags "-w -s" -o client.so -v ./cmd/client
+      env:
+        PKG_CONFIG_PATH: ${{ github.workspace }}/cmd/client
+        CC: "gcc -fPIC"
+        MAKE: "sudo make"
+      run: |
+        chmod +x ./cmd/client/build.sh &&
+        ./cmd/client/build.sh client.so
 
     # Upload the built artifact as the build result.
     - name: Artifact
