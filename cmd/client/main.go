@@ -10,7 +10,7 @@ LUALIB_API int luaopen_client(lua_State* L) {
 		{ "read", luatc_read },
 		{ "write", luatc_write },
 		{ "httpraw", luatc_httpraw },
-	//	{ "wsraw", luatc_wsraw },
+		{ "wsraw", luatc_wsraw },
 		{ NULL, NULL },
 	};
 	luaL_newlib(L, regs);

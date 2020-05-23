@@ -135,7 +135,7 @@ LUALIB_API int luatc_httpraw(lua_State* L);
  * in techmino, it is just used for benchmarking websocket
  * connections, and intended for temporary websocket access.
  */
-//LUALIB_API int luatc_wsraw(lua_State* L);
+LUALIB_API int luatc_wsraw(lua_State* L);
 
 // luaopen_client is the library entry point function that will
 // be called in 'require "client"' statement.
