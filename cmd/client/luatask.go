@@ -17,10 +17,10 @@ type luaTaskResult interface {
 	marshal(*C.lua_State)
 }
 
-// luaTask is a tracable and controllable task bind to the
-// lua side. The lua side could execute poll for testing its
-// status, or unref the task to terminate it.
-type luaTask struct {
+// luaTaskHandle is a tracable and controllable task bind to
+// the lua side. The lua side could execute poll for testing
+// its status, or unref the task to terminate it.
+type luaTaskHandle struct {
 	// ctx controlling the execution of the task.
 	ctx context.Context
 
@@ -39,38 +39,38 @@ type luaTask struct {
 	completionCh chan struct{}
 }
 
-// luaTaskFunc is the function that will be executed after
-// the task control block pushsed onto the lua stack.
-type luaTaskFunc func(context.Context) (luaTaskResult, error)
+// luaTask is the function that will be executed after the
+// task control block pushsed onto the lua stack.
+type luaTask func(context.Context) (luaTaskResult, error)
 
 // luaTaskPush will initialize a task control block and
 // push it onto the lua stack.
-func luaTaskPush(L *C.lua_State, f luaTaskFunc) {
+func luaTaskPush(L *C.lua_State, task luaTask) {
 	// Create the task control block on go side.
 	ctx, cancel := context.WithCancel(context.Background())
-	task := &luaTask{
+	taskHandle := &luaTaskHandle{
 		ctx:          ctx,
 		cancel:       cancel,
 		completionCh: make(chan struct{}),
 	}
 
 	// Bind the task control block to the lua side.
-	luaGcAlloc(L, task, task.cancel)
+	luaGcAlloc(L, taskHandle, taskHandle.cancel)
 
 	// Startup the task execution goroutine.
 	go func() {
-		defer close(task.completionCh)
+		defer close(taskHandle.completionCh)
 		defer func() {
 			if err := recover(); err != nil {
-				task.result = nil
-				task.err = new(string)
-				*task.err = fmt.Sprintf("%s", err)
+				taskHandle.result = nil
+				taskHandle.err = new(string)
+				*taskHandle.err = fmt.Sprintf("%s", err)
 			}
 		}()
 		var err error
-		if task.result, err = f(ctx); err != nil {
-			task.err = new(string)
-			*task.err = err.Error()
+		if taskHandle.result, err = task(ctx); err != nil {
+			taskHandle.err = new(string)
+			*taskHandle.err = err.Error()
 		}
 	}()
 }
@@ -78,35 +78,35 @@ func luaTaskPush(L *C.lua_State, f luaTaskFunc) {
 //export luatc_poll
 func luatc_poll(L *C.lua_State) C.int {
 	// First, attempt to cast the interface into a task.
-	task, ok := luaGcLookup(L, -1).(*luaTask)
+	taskHandle, ok := luaGcLookup(L, -1).(*luaTaskHandle)
 	if !ok {
-		// return nil, "not main.luaTask"
+		// return nil, "not main.luaTaskHandle"
 		luaStackTopSet(L, 0)
 		luaNilPush(L)
-		luaStringPush(L, "not main.luaTask")
+		luaStringPush(L, "not main.luaTaskHandle")
 		return C.int(2)
 	}
 
 	// Second, attemp test the current task state.
 	select {
-	case <-task.ctx.Done():
+	case <-taskHandle.ctx.Done():
 		// return nil, "context canceled"
 		luaStackTopSet(L, 0)
 		luaNilPush(L)
 		luaStringPush(L, "context canceled")
 		return C.int(2)
 
-	case <-task.completionCh:
+	case <-taskHandle.completionCh:
 		// return result, err
 		luaStackTopSet(L, 0)
-		if task.result != nil {
-			task.result.marshal(L)
+		if taskHandle.result != nil {
+			taskHandle.result.marshal(L)
 		} else {
 			luaNilPush(L)
 		}
 		luaStackTopSet(L, 1)
-		if task.err != nil {
-			luaStringPush(L, *task.err)
+		if taskHandle.err != nil {
+			luaStringPush(L, *taskHandle.err)
 		} else {
 			luaNilPush(L)
 		}

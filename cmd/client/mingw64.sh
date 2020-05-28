@@ -2,6 +2,7 @@
 
 set -e
 PATH="/mingw64/bin:$PATH"
+GOROOT="/mingw64/lib/go"
 
 # Install MinGW build packages dependencies.
 echo "Install MinGW depdencies using MinGW pacman"
