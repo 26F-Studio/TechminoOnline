@@ -2,8 +2,8 @@
 
 # Package information for LuaJIT to be used by pkg-config.
 majver=2
-minver=1
-relver=0
+minver=0
+relver=5
 version=${majver}.${minver}.${relver}-beta3
 abiver=5.1
 
@@ -22,6 +22,6 @@ Description: Just-in-time compiler for Lua
 URL: http://luajit.org
 Version: ${version}
 Requires:
-Libs: -L${libdir} -l${libname} -lm -ldl
+Libs: -L${libdir} -l${libname} -lm
 Cflags: -I${includedir}
 LDFLAGS: -Wl,-E
