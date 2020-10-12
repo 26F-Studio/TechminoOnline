@@ -49,10 +49,37 @@ jobs:
           name: client-linux.so
           path: client.so
 
-  # Build client.dll using cross build method.
-  build-windows:
-    name: Build Windows
+  # Cross building dynamic libraries on different platforms.
+  crossbuilds:
+    name: Build ${{ matrix.name }}
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+        - title: windows-x86-64
+          name: Windows x86-64
+          download: client-windows-x86-64.dll
+          artifact: client.dll
+          aptPackage: gcc-mingw-w64-x86-64
+          prefix: x86_64-w64-mingw32
+          cflags: "-fPIC"
+          luaHostCC: "gcc -m64"
+          luaOs: Windows
+          luaTarget: luajit.exe
+          goArch: amd64
+          goOs: windows
+        - title: windows-i386
+          name: Windows i386
+          download: client-windows-i386.dll
+          artifact: client.dll
+          aptPackage: gcc-mingw-w64-i686
+          prefix: i686-w64-mingw32
+          luaHostCC: "gcc -m32"
+          cflags: "-march=i686 -fPIC"
+          luaOs: Windows
+          luaTarget: luajit.exe
+          goArch: "386"
+          goOs: windows
     steps:
 
     # Setup golang compiler of version Go 1.x
@@ -65,7 +92,7 @@ jobs:
     # Install the dependencies of pkg-config and mingw64-w64.
     - name: Install dependencies
       run: |
-        sudo apt update && sudo apt install pkg-config gcc-mingw-w64-x86-64 gcc-multilib
+        sudo apt update && sudo apt install pkg-config ${{ matrix.aptPackage }} gcc-multilib
 
     # Execute checkout to fetch the source code of the project.
     - name: Checkout source code
@@ -83,21 +110,23 @@ jobs:
     - name: Build
       env:
         PKG_CONFIG_PATH: ${{ github.workspace }}/pkgconfig/crossbuild
-        HOST_CC: "gcc -m64"
-        XCFLAGS: "-fPIC"
-        CROSS: "x86_64-w64-mingw32-"
-        TARGET_SYS: "Windows"
-        FILE_T: "luajit.exe"
-        CC: "x86_64-w64-mingw32-gcc -fPIC"
+        HOST_CC: ${{ matrix.luaHostCC }}
+        XCFLAGS: ${{ matrix.cflags }}
+        CROSS: "${{ matrix.prefix }}-"
+        TARGET_SYS: ${{ matrix.luaOs }}
+        FILE_T: ${{ matrix.luaTarget }}
+        CC: "${{ matrix.prefix }}-gcc ${{ matrix.cflags }}"
+        CXX: "${{ matrix.prefix }}-g++ ${{ matrix.cflags }}"
         MAKE: "sudo make --trace"
-        GOOS: "windows"
+        GOOS: ${{ matrix.goOs }}
+        GOARCH: ${{ matrix.goArch }}
       run: |
         chmod +x ./cmd/client/build.sh &&
-        ./cmd/client/build.sh client.dll
+        ./cmd/client/build.sh ${{ matrix.artifact }}
 
     # Upload the built artifact as the build result.
     - name: Artifact
       uses: actions/upload-artifact@v2
       with:
-          name: client-windows.dll
-          path: client.dll
+          name: ${{ matrix.download }}
+          path: ${{ matrix.artifact }}
