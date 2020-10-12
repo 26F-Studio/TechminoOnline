@@ -2,9 +2,9 @@
 
 # Package information for LuaJIT to be used by pkg-config.
 majver=2
-minver=0
-relver=5
-version=${majver}.${minver}.${relver}-beta3
+minver=1
+relver=0
+version=${majver}.${minver}.${relver}-beta1
 abiver=5.1
 
 prefix=/builds/luajit

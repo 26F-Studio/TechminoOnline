@@ -34,10 +34,11 @@ jobs:
 
     # Execute build and generate client.so lua file.
     - name: Build
+      shell: /bin/bash -e {0}
       env:
         PKG_CONFIG_PATH: ${{ github.workspace }}/pkgconfig/native
         CC: "gcc -fPIC"
-        MAKE: "sudo make"
+        MAKE: "make"
       run: |
         chmod +x ./cmd/client/build.sh &&
         ./cmd/client/build.sh client.so
@@ -53,6 +54,8 @@ jobs:
   crossbuilds:
     name: Build ${{ matrix.name }}
     runs-on: ubuntu-latest
+
+    # Specify different flavours for cross-building.
     strategy:
       matrix:
         include:
@@ -62,24 +65,62 @@ jobs:
           artifact: client.dll
           aptPackage: gcc-mingw-w64-x86-64
           prefix: x86_64-w64-mingw32
+          luajitRef: "v2.0.5"
+          pkgConfig: "crossbuild"
           cflags: "-fPIC"
           luaHostCC: "gcc -m64"
           luaOs: Windows
           luaTarget: luajit.exe
           goArch: amd64
           goOs: windows
+
         - title: windows-i386
           name: Windows i386
           download: client-windows-i386.dll
           artifact: client.dll
           aptPackage: gcc-mingw-w64-i686
           prefix: i686-w64-mingw32
+          luajitRef: "v2.0.5"
+          pkgConfig: "crossbuild"
           luaHostCC: "gcc -m32"
           cflags: "-march=i686 -fPIC"
           luaOs: Windows
           luaTarget: luajit.exe
           goArch: "386"
           goOs: windows
+
+        - title: android-armeabi-v7a
+          name: Android armv7-a
+          download: client-android-armeabi-v7a.so
+          artifact: client.so
+          aptPackage: ""
+          prefix: arm-linux-androideabi
+          luajitRef: "v2.1.0-beta1"
+          pkgConfig: "android"
+          luaHostCC: "gcc -m32"
+          cflags: "-fPIC"
+          luaOs: Linux
+          luaTarget: luajit
+          goArch: "arm"
+          goOs: linux
+          androidArch: "arm"
+
+        - title: android-arm64-v8a
+          name: Android armv8-a
+          download: client-android-arm64-v8a.so
+          artifact: client.so
+          aptPackage: ""
+          prefix: aarch64-linux-android
+          luajitRef: "v2.1.0-beta1"
+          pkgConfig: "android"
+          luaHostCC: "gcc -m64"
+          cflags: "-fPIC"
+          luaOs: Linux
+          luaTarget: luajit
+          goArch: "arm64"
+          goOs: linux
+          androidArch: "arm64"
+
     steps:
 
     # Setup golang compiler of version Go 1.x
@@ -104,12 +145,23 @@ jobs:
       with:
         path: luajit
         repository: LuaJIT/LuaJIT
-        ref: v2.0.5
+        ref: ${{ matrix.luajitRef }}
+
+    # Install Android NDK if there's android target specified.
+    - name: Install Android NDK
+      if: ${{ matrix.androidArch != null }}
+      uses: ravinderjangra/android-ndk-toolchain-setup@0.2
+      with:
+        api: "21"
+        arch: ${{ matrix.androidArch }}
+        install-location: 'ndk'
+        force: true
 
     # Execute build and generate client.so lua file.
     - name: Build
+      shell: /bin/bash -e {0}
       env:
-        PKG_CONFIG_PATH: ${{ github.workspace }}/pkgconfig/crossbuild
+        PKG_CONFIG_PATH: ${{ github.workspace }}/pkgconfig/${{ matrix.pkgConfig }}
         HOST_CC: ${{ matrix.luaHostCC }}
         XCFLAGS: ${{ matrix.cflags }}
         CROSS: "${{ matrix.prefix }}-"
@@ -117,7 +169,7 @@ jobs:
         FILE_T: ${{ matrix.luaTarget }}
         CC: "${{ matrix.prefix }}-gcc ${{ matrix.cflags }}"
         CXX: "${{ matrix.prefix }}-g++ ${{ matrix.cflags }}"
-        MAKE: "sudo make --trace"
+        MAKE: "make --trace"
         GOOS: ${{ matrix.goOs }}
         GOARCH: ${{ matrix.goArch }}
       run: |

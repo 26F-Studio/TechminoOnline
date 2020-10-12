@@ -7,7 +7,7 @@ relver=5
 version=${majver}.${minver}.${relver}-beta3
 abiver=5.1
 
-prefix=/usr/local
+prefix=/builds/luajit
 multilib=lib
 exec_prefix=${prefix}
 libdir=${exec_prefix}/${multilib}
