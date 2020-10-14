@@ -12,35 +12,13 @@ jobs:
     - name: Set up Go 1.x
       uses: actions/setup-go@v2
       with:
-        go-version: ^1.13
+        go-version: 1.12
       id: go
 
-    # Install the dependencies of pkg-config and luajit.
+    # Install the dependencies of pkg-config.
     - name: Install dependencies
       run: |
-        sudo apt update &&
-        sudo apt install pkg-config libluajit-5.1-dev
-
-    # Execute checkout to fetch the source code of the project.
-    - name: Checkout source code
-      uses: actions/checkout@v2
-
-    # Execute build and generate client.so lua file.
-    - name: Build
-      run: GO111MODULE=on GOPROXY=https://goproxy.io go build -buildmode="c-shared" -ldflags "-w -s" -o client.so -v ./cmd/client
-
-    # Upload the built artifact as the build result.
-    - name: Artifact
-      uses: actions/upload-artifact@v2
-      with:
-          name: client-linux.so
-          path: client.so
-
-  # Build client.dll under windows operating system.
-  build-windows:
-    name: Build Windows
-    runs-on: windows-latest
-    steps:
+        sudo apt update && sudo apt install pkg-config
 
     # Execute checkout to fetch the source code of the project.
     - name: Checkout source code
@@ -52,23 +30,155 @@ jobs:
       with:
         path: luajit
         repository: LuaJIT/LuaJIT
-        ref: v2.1
+        ref: v2.0.5
 
-    # Prepare MinGW environment for connector building.
-    - name: Checkout MinGW
-      uses: eine/setup-msys2@v0
-      with:
-        msystem: MSYS
-        update: true
-
-    # Execute build and generate the techmino.client.dll lua file.
+    # Execute build and generate client.so lua file.
     - name: Build
-      shell: msys2 {0}
-      run: ./cmd/client/mingw64.sh
+      shell: /bin/bash -e {0}
+      env:
+        PKG_CONFIG_PATH: ${{ github.workspace }}/pkgconfig/native
+        CC: "gcc -fPIC"
+        MAKE: "make"
+      run: |
+        chmod +x ./cmd/client/build.sh &&
+        ./cmd/client/build.sh client.so
 
     # Upload the built artifact as the build result.
     - name: Artifact
       uses: actions/upload-artifact@v2
       with:
-          name: client-windows.dll
-          path: client.dll
+          name: client-linux.so
+          path: client.so
+
+  # Cross building dynamic libraries on different platforms.
+  crossbuilds:
+    name: Build ${{ matrix.name }}
+    runs-on: ubuntu-latest
+
+    # Specify different flavours for cross-building.
+    strategy:
+      matrix:
+        include:
+        - title: windows-x86-64
+          name: Windows x86-64
+          download: client-windows-x86-64.dll
+          artifact: client.dll
+          aptPackage: gcc-mingw-w64-x86-64
+          prefix: x86_64-w64-mingw32
+          luajitRef: "v2.0.5"
+          pkgConfig: "crossbuild"
+          cflags: "-fPIC"
+          luaHostCC: "gcc -m64"
+          luaOs: Windows
+          luaTarget: luajit.exe
+          goArch: amd64
+          goOs: windows
+
+        - title: windows-i386
+          name: Windows i386
+          download: client-windows-i386.dll
+          artifact: client.dll
+          aptPackage: gcc-mingw-w64-i686
+          prefix: i686-w64-mingw32
+          luajitRef: "v2.0.5"
+          pkgConfig: "crossbuild"
+          luaHostCC: "gcc -m32"
+          cflags: "-march=i686 -fPIC"
+          luaOs: Windows
+          luaTarget: luajit.exe
+          goArch: "386"
+          goOs: windows
+
+        - title: android-armeabi-v7a
+          name: Android armv7-a
+          download: client-android-armeabi-v7a.so
+          artifact: client.so
+          aptPackage: ""
+          prefix: arm-linux-androideabi
+          luajitRef: "v2.1.0-beta1"
+          pkgConfig: "android"
+          luaHostCC: "gcc -m32"
+          cflags: "-fPIC"
+          luaOs: Linux
+          luaTarget: luajit
+          goArch: "arm"
+          goOs: linux
+          androidArch: "arm"
+
+        - title: android-arm64-v8a
+          name: Android armv8-a
+          download: client-android-arm64-v8a.so
+          artifact: client.so
+          aptPackage: ""
+          prefix: aarch64-linux-android
+          luajitRef: "v2.1.0-beta1"
+          pkgConfig: "android"
+          luaHostCC: "gcc -m64"
+          cflags: "-fPIC"
+          luaOs: Linux
+          luaTarget: luajit
+          goArch: "arm64"
+          goOs: linux
+          androidArch: "arm64"
+
+    steps:
+
+    # Setup golang compiler of version Go 1.x
+    - name: Set up Go 1.x
+      uses: actions/setup-go@v2
+      with:
+        go-version: 1.12
+      id: go
+
+    # Install the dependencies of pkg-config and mingw64-w64.
+    - name: Install dependencies
+      run: |
+        sudo apt update && sudo apt install pkg-config ${{ matrix.aptPackage }} gcc-multilib
+
+    # Execute checkout to fetch the source code of the project.
+    - name: Checkout source code
+      uses: actions/checkout@v2
+
+    # Checkout LuaJIT repository for dependencies.
+    - name: Checkout LuaJIT
+      uses: actions/checkout@v2
+      with:
+        path: luajit
+        repository: LuaJIT/LuaJIT
+        ref: ${{ matrix.luajitRef }}
+
+    # Install Android NDK if there's android target specified.
+    - name: Install Android NDK
+      if: ${{ matrix.androidArch != null }}
+      uses: ravinderjangra/android-ndk-toolchain-setup@0.2
+      with:
+        api: "21"
+        arch: ${{ matrix.androidArch }}
+        install-location: 'ndk'
+        force: true
+
+    # Execute build and generate client.so lua file.
+    - name: Build
+      shell: /bin/bash -e {0}
+      env:
+        PKG_CONFIG_PATH: ${{ github.workspace }}/pkgconfig/${{ matrix.pkgConfig }}
+        HOST_CC: ${{ matrix.luaHostCC }}
+        XCFLAGS: ${{ matrix.cflags }}
+        CROSS: "${{ matrix.prefix }}-"
+        TARGET_SYS: ${{ matrix.luaOs }}
+        FILE_T: ${{ matrix.luaTarget }}
+        CC: "${{ matrix.prefix }}-gcc ${{ matrix.cflags }}"
+        CXX: "${{ matrix.prefix }}-g++ ${{ matrix.cflags }}"
+        MAKE: "make --trace"
+        GOOS: ${{ matrix.goOs }}
+        GOARCH: ${{ matrix.goArch }}
+      run: |
+        chmod +x ./cmd/client/build.sh &&
+        ./cmd/client/build.sh ${{ matrix.artifact }}
+
+    # Upload the built artifact as the build result.
+    - name: Artifact
+      uses: actions/upload-artifact@v2
+      with:
+          name: ${{ matrix.download }}
+          path: ${{ matrix.artifact }}

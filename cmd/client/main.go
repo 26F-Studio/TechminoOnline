@@ -13,7 +13,8 @@ LUALIB_API int luaopen_client(lua_State* L) {
 		{ "wsraw", luatc_wsraw },
 		{ NULL, NULL },
 	};
-	luaL_newlib(L, regs);
+    lua_createtable(L, 0, 0);
+	luaL_register(L, NULL, regs);
 	return 1;
 }
 */
