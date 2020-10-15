@@ -98,11 +98,11 @@ jobs:
           luajitRef: "v2.1.0-beta1"
           pkgConfig: "android"
           luaHostCC: "gcc -m32"
-          cflags: "-fPIC"
+          cflags: "-fPIC -ftls-model=global-dynamic"
           luaOs: Linux
           luaTarget: luajit
           goArch: "arm"
-          goOs: linux
+          goOs: android
           androidArch: "arm"
 
         - title: android-arm64-v8a
@@ -114,11 +114,11 @@ jobs:
           luajitRef: "v2.1.0-beta1"
           pkgConfig: "android"
           luaHostCC: "gcc -m64"
-          cflags: "-fPIC"
+          cflags: "-fPIC -ftls-model=global-dynamic"
           luaOs: Linux
           luaTarget: luajit
           goArch: "arm64"
-          goOs: linux
+          goOs: android
           androidArch: "arm64"
 
     steps:
