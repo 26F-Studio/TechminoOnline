@@ -95,7 +95,7 @@ func (wsconn *luaWebSocketConn) runWebSocketReader() error {
 		}
 
 		// Setup non-blocking reading deadline.
-		ddl := time.Now().Add(5*time.Second)
+		ddl := time.Now().Add(5 * time.Second)
 		if err := wsconn.conn.SetReadDeadline(ddl); err != nil {
 			return err
 		}
@@ -140,9 +140,9 @@ type luaWebSocketReadResult struct {
 // marshal the websocket read result to lua stack.
 func (r *luaWebSocketReadResult) marshal(L *C.lua_State) {
 	luaTableNew(L, len(r.frames), 0)
-	for i := 0; i < len(r.frames); i ++ {
+	for i := 0; i < len(r.frames); i++ {
 		luaBytesPush(L, r.frames[i])
-		luaTableRawSeti(L, -2, i + 1)
+		luaTableRawSeti(L, -2, i+1)
 	}
 }
 
@@ -160,7 +160,7 @@ func (wsconn *luaWebSocketConn) write(L *C.lua_State) error {
 	// Attempt to read the pending frames on the lua stack.
 	top := luaStackTopGet(L)
 	var pendingFrames [][]byte
-	for i := 2; i <= top; i ++ {
+	for i := 2; i <= top; i++ {
 		if luaTypeOf(L, i) != luaTypeString {
 			return errors.New("invalid argument type")
 		}
@@ -242,7 +242,17 @@ func luatc_wsraw(L *C.lua_State) C.int {
 		config.Origin = parsedOrigin
 	}
 
-	// TODO: parse more fields in the table in the future.
+	// Attempt to parse the websocket header from the table.
+	luaStringPush(L, "header")
+	luaTableRawGet(L, 1)
+	parsedHeader, headerErr := luaReadHttpHeader(L, -1)
+	luaStackPop(L, 1)
+	if headerErr != nil {
+		luaNilPush(L)
+		luaStringPush(L, headerErr.Error())
+		return C.int(2)
+	}
+	config.Header = parsedHeader
 
 	// Create the websocket connect task and return.
 	luaTaskPush(L, func(ctx context.Context) (luaTaskResult, error) {

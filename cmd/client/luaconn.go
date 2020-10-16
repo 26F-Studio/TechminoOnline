@@ -74,7 +74,7 @@ func (c *luaConnHandle) marshal(L *C.lua_State) {
 	// complex state, it is managed on the go side using
 	// go finalizer by accounting reachability from the
 	// luaGcRoot (referenced as userdata or in luaTask).
-	luaGcAlloc(L, c, func(){})
+	luaGcAlloc(L, c, func() {})
 }
 
 //export luatc_read
