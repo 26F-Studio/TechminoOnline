@@ -125,3 +125,8 @@ func luaTableRawGeti(L *C.lua_State, index, n int) {
 func luaTableRawSeti(L *C.lua_State, index, n int) {
 	C.lua_rawseti(L, C.int(index), C.int(n))
 }
+
+// luaTableNext visits all keys in the lua table.
+func luaTableNext(L *C.lua_State, index int) bool {
+	return C.lua_next(L, C.int(index)) != C.int(0)
+}

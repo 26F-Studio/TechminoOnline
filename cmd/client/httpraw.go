@@ -28,6 +28,9 @@ type httpRawResponse struct {
 	// status string of the response.
 	status string
 
+	// header of the response that is received.
+	header http.Header
+
 	// body of the response that is received.
 	body []byte
 }
@@ -44,6 +47,11 @@ func (r httpRawResponse) marshal(L *C.lua_State) {
 	// Set the result.status field.
 	luaStringPush(L, "status")
 	luaStringPush(L, r.status)
+	luaTableRawSet(L, -3)
+
+	// Set the result.header field.
+	luaStringPush(L, "header")
+	luaPushHttpHeader(L, r.header)
 	luaTableRawSet(L, -3)
 
 	// Set the result.body field.
@@ -80,6 +88,16 @@ func luatc_httpraw(L *C.lua_State) C.int {
 		return C.int(2)
 	}
 
+	// Attempt to parse the http header at index.
+	luaStringPush(L, "header")
+	luaTableRawGet(L, 1)
+	parsedHeader, headerErr := luaReadHttpHeader(L, -1)
+	luaStackPop(L, 1)
+	if headerErr != nil {
+		luaNilPush(L)
+		luaStringPush(L, headerErr.Error())
+	}
+
 	// TODO: parse more arguments from the request, now we omit
 	// them since we want a quick demo.
 
@@ -90,6 +108,7 @@ func luatc_httpraw(L *C.lua_State) C.int {
 		// Initialize the request with parsed arguments.
 		var request http.Request
 		request.URL = parsedURL
+		request.Header = parsedHeader
 
 		// Perform the task request with the raw client.
 		response, err := rawClient.Do(request.WithContext(ctx))
@@ -108,6 +127,7 @@ func luatc_httpraw(L *C.lua_State) C.int {
 		return httpRawResponse{
 			status:     response.Status,
 			statusCode: response.StatusCode,
+			header:     response.Header,
 			body:       receiver.Bytes(),
 		}, nil
 	})
