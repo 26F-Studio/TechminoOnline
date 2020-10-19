@@ -69,6 +69,15 @@ func luatc_httpraw(L *C.lua_State) C.int {
 		return C.int(2)
 	}
 
+	// Attempt to fetch the request method.
+	parsedMethod := "GET"
+	luaStringPush(L, "method")
+	luaTableRawGet(L, 1)
+	if luaTypeOf(L, -1) == luaTypeString {
+		parsedMethod = luaStringGet(L, -1)
+	}
+	luaStackPop(L, 1)
+
 	// Attempt to fetch the url field from the table.
 	luaStringPush(L, "url")
 	luaTableRawGet(L, 1)
@@ -107,6 +116,7 @@ func luatc_httpraw(L *C.lua_State) C.int {
 
 		// Initialize the request with parsed arguments.
 		var request http.Request
+		request.Method = parsedMethod
 		request.URL = parsedURL
 		request.Header = parsedHeader
 
