@@ -42,9 +42,18 @@ func luaReadHttpHeader(L *C.lua_State, idx int) (http.Header, error) {
 			"invalid header %s", luaStringGet(L, idx))
 	}
 
-	// Attempt to visit all table entries in the map.
+	// Save the stack index for resuming after returning.
 	stackTop := luaStackTopGet(L)
 	defer luaStackTopSet(L, stackTop)
+
+	// Reverse the direction of stack indexing since
+	// we will be using minus index while reading,
+	// causing wrong table to be accessed.
+	if idx < 0 {
+		idx = stackTop + idx + 1
+	}
+
+	// Attempt to visit all table entries in the map.
 	luaNilPush(L)
 	for luaTableNext(L, idx) {
 		key := luaStringGet(L, -1)
