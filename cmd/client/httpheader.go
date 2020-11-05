@@ -56,8 +56,8 @@ func luaReadHttpHeader(L *C.lua_State, idx int) (http.Header, error) {
 	// Attempt to visit all table entries in the map.
 	luaNilPush(L)
 	for luaTableNext(L, idx) {
-		key := luaStringGet(L, -1)
-		value := luaStringGet(L, -2)
+		key := luaStringGet(L, -2)
+		value := luaStringGet(L, -1)
 		if luaTypeOf(L, -2) != luaTypeString &&
 			luaTypeOf(L, -1) != luaTypeString {
 			return nil, fmt.Errorf(
