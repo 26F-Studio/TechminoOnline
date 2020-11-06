@@ -107,6 +107,14 @@ func luatc_httpraw(L *C.lua_State) C.int {
 		luaStringPush(L, headerErr.Error())
 	}
 
+	// Attempt to fetch the request body
+	luaStringPush(L, "body")
+	luaTableRawGet(L, 1)
+	if luaTypeOf(L, -1) == luaTypeString {
+		parsedBody := luaStringGet(L, -1)
+	}
+	luaStackPop(L, 1)
+
 	// TODO: parse more arguments from the request, now we omit
 	// them since we want a quick demo.
 
@@ -119,7 +127,9 @@ func luatc_httpraw(L *C.lua_State) C.int {
 		request.Method = parsedMethod
 		request.URL = parsedURL
 		request.Header = parsedHeader
-
+		if parsedBody != nil {
+			request.Body = parsedBody
+		}
 		// Perform the task request with the raw client.
 		response, err := rawClient.Do(request.WithContext(ctx))
 		if err != nil {
