@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"io/ioutil"
 	"net/http"
 	"net/url"
 )
@@ -105,10 +106,34 @@ func luatc_httpraw(L *C.lua_State) C.int {
 	if headerErr != nil {
 		luaNilPush(L)
 		luaStringPush(L, headerErr.Error())
+		return C.int(2)
 	}
 
-	// TODO: parse more arguments from the request, now we omit
-	// them since we want a quick demo.
+	// Attempt to read the body and place it into
+	// a byte buffer.
+	luaStringPush(L, "body")
+	luaTableRawGet(L, 1)
+	var body io.ReadCloser
+	var contentLength int64
+	if luaTypeOf(L, -1) == luaTypeString {
+		// If there's body, copy the body into the
+		// buffer, otherwise just ignore the content.
+		var buffer bytes.Buffer
+		if _, err := buffer.WriteString(
+			luaStringGet(L, -1)); err != nil {
+			luaNilPush(L)
+			luaStringPush(L, err.Error())
+			return C.int(2)
+		}
+		contentLength = int64(buffer.Len())
+		body = ioutil.NopCloser(&buffer)
+	} else if luaTypeOf(L, -1) != luaTypeNil {
+		// Report error if the body type is not known.
+		luaNilPush(L)
+		luaStringPush(L, "unrecognized body type")
+		return C.int(2)
+	}
+	luaStackPop(L, 1)
 
 	// Create the request handle and return.
 	luaTaskPush(L, func(ctx context.Context) (luaTaskResult, error) {
@@ -119,6 +144,8 @@ func luatc_httpraw(L *C.lua_State) C.int {
 		request.Method = parsedMethod
 		request.URL = parsedURL
 		request.Header = parsedHeader
+		request.Body = body
+		request.ContentLength = contentLength
 
 		// Perform the task request with the raw client.
 		response, err := rawClient.Do(request.WithContext(ctx))
